@@ -327,6 +327,63 @@ static inline Rboolean Strtoll()
     return(FALSE);  // invalid integer such as "3.14", "123ABC," or "12345678901234567890" (larger than even int64) => bump type.
 }
 
+static inline Rboolean readspecialvalue(const char *nptr, char **endptr, double *x, Rboolean positive)
+{
+       if (nptr[0] == 'I' && nptr[1] == 'N' && nptr[2] == 'F')
+       {
+               nptr = nptr+3;
+               *x = (positive == TRUE)?INFINITY:-INFINITY;
+       }
+       else if (nptr[0] == 'I' && nptr[1] == 'N' && nptr[2] == 'D')
+       {
+               nptr = nptr+3;
+               *x = NAN;
+       }
+       else if (nptr[0] == 'S' && nptr[1] == 'N' && nptr[2] == 'A' && nptr[3] == 'N')
+       {
+               nptr = nptr+4;
+               *x = NAN;
+       }
+       else if (nptr[0] == 'Q' && nptr[1] == 'N' && nptr[2] == 'A' && nptr[3] == 'N')
+       {
+               nptr = nptr+4;
+               *x = NAN;
+       }
+       else
+               return(FALSE);
+
+       while (*nptr == '0')
+               nptr++;
+
+       *endptr = nptr;
+       return(TRUE);
+}
+
+static inline Rboolean check_win_special(const char *nptr, char **endptr, double *x)
+{
+       if (nptr[0] == '1' && nptr[1] == '.' && nptr[2] == '#')
+               return readspecialvalue(nptr+3, endptr, x, TRUE);
+       if (nptr[0] == '-' && nptr[1] == '1' && nptr[2] == '.' && nptr[3] == '#')
+               return readspecialvalue(nptr+4, endptr, x, FALSE);
+       return(FALSE);
+}
+
+static inline double strtod_wrapper(const char *nptr, char **endptr)
+{
+       double x;
+       if (check_win_special(nptr, endptr, &x))
+               return x;
+       return strtod(nptr, endptr);
+}
+
+static inline double strtold_wrapper(const char *nptr, char **endptr)
+{
+       double x;
+       if (check_win_special(nptr, endptr, &x))
+               return x;
+       return strtold(nptr, endptr);
+}
+
 static inline Rboolean Strtod()
 {
     // Specialized strtod for same reasons as Strtoll (leading \t dealt with), but still uses stdlib:strtod (hard to do better, unlike strtoll).
@@ -348,7 +405,7 @@ static inline Rboolean Strtod()
     const char *start=lch;
     errno = 0;
 
-    u.d = strtod(start, (char **)&lch);
+    u.d = strtod_wrapper(start, (char **)&lch);
     // take care of leading spaces
     while(lch<eof && *lch!=sep && *lch==' ') lch++;
     if (errno==0 && lch>start && (lch==eof || *lch==sep || *lch==eol)) {
@@ -358,7 +415,7 @@ static inline Rboolean Strtod()
     if (errno==ERANGE && lch>start) {
         lch = start;
         errno = 0;
-        u.d = (double)strtold(start, (char **)&lch);
+        u.d = (double)strtold_wrapper(start, (char **)&lch);
         if (errno==0 && lch>start && (lch==eof || *lch==sep || *lch==eol)) {
             ch = lch;
             if (ERANGEwarning) {
