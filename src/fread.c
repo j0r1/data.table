@@ -337,17 +337,17 @@ static inline Rboolean readspecialvalue(const char *nptr, char **endptr, double 
        else if (nptr[0] == 'I' && nptr[1] == 'N' && nptr[2] == 'D')
        {
                nptr = nptr+3;
-               *x = NAN;
+               *x = (positive == TRUE)?NAN:-NAN;
        }
        else if (nptr[0] == 'S' && nptr[1] == 'N' && nptr[2] == 'A' && nptr[3] == 'N')
        {
                nptr = nptr+4;
-               *x = NAN;
+			   *x = (positive == TRUE)?NAN:-NAN;
        }
        else if (nptr[0] == 'Q' && nptr[1] == 'N' && nptr[2] == 'A' && nptr[3] == 'N')
        {
                nptr = nptr+4;
-               *x = NAN;
+			   *x = (positive == TRUE)?NAN:-NAN;
        }
        else
                return(FALSE);
