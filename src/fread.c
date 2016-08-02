@@ -329,59 +329,51 @@ static inline Rboolean Strtoll()
 
 static inline Rboolean readspecialvalue(const char *nptr, char **endptr, double *x, Rboolean positive)
 {
-       if (nptr[0] == 'I' && nptr[1] == 'N' && nptr[2] == 'F')
-       {
-               nptr = nptr+3;
-               *x = (positive == TRUE)?INFINITY:-INFINITY;
-       }
-       else if (nptr[0] == 'I' && nptr[1] == 'N' && nptr[2] == 'D')
-       {
-               nptr = nptr+3;
-               *x = (positive == TRUE)?NAN:-NAN;
-       }
-       else if (nptr[0] == 'S' && nptr[1] == 'N' && nptr[2] == 'A' && nptr[3] == 'N')
-       {
-               nptr = nptr+4;
-			   *x = (positive == TRUE)?NAN:-NAN;
-       }
-       else if (nptr[0] == 'Q' && nptr[1] == 'N' && nptr[2] == 'A' && nptr[3] == 'N')
-       {
-               nptr = nptr+4;
-			   *x = (positive == TRUE)?NAN:-NAN;
-       }
-       else
-               return(FALSE);
+   if (nptr[0] == 'I' && nptr[1] == 'N' && nptr[2] == 'F') { // INF
+       nptr = nptr+3;
+       *x = (positive == TRUE)?INFINITY:-INFINITY;
+   } else if (nptr[0] == 'I' && nptr[1] == 'N' && nptr[2] == 'D') { // IND
+       nptr = nptr+3;
+       *x = (positive == TRUE)?NAN:-NAN;
+   } else if (nptr[0] == 'S' && nptr[1] == 'N' && nptr[2] == 'A' && nptr[3] == 'N') { // SNAN
+       nptr = nptr+4;
+       *x = (positive == TRUE)?NAN:-NAN;
+   } else if (nptr[0] == 'Q' && nptr[1] == 'N' && nptr[2] == 'A' && nptr[3] == 'N') { // QNAN    
+       nptr = nptr+4;
+       *x = (positive == TRUE)?NAN:-NAN;
+   } else return(FALSE);
 
-       while (*nptr == '0')
-               nptr++;
+   // To handle something like 1.#INF00000
+   while (*nptr == '0')
+       nptr++;
 
-       *endptr = nptr;
-       return(TRUE);
+   *endptr = nptr;
+   return(TRUE);
 }
 
 static inline Rboolean check_win_special(const char *nptr, char **endptr, double *x)
 {
-       if (nptr[0] == '1' && nptr[1] == '.' && nptr[2] == '#')
-               return readspecialvalue(nptr+3, endptr, x, TRUE);
-       if (nptr[0] == '-' && nptr[1] == '1' && nptr[2] == '.' && nptr[3] == '#')
-               return readspecialvalue(nptr+4, endptr, x, FALSE);
-       return(FALSE);
+    if (nptr[0] == '1' && nptr[1] == '.' && nptr[2] == '#')
+        return readspecialvalue(nptr+3, endptr, x, TRUE);
+    if (nptr[0] == '-' && nptr[1] == '1' && nptr[2] == '.' && nptr[3] == '#')
+        return readspecialvalue(nptr+4, endptr, x, FALSE);
+    return(FALSE);
 }
 
 static inline double strtod_wrapper(const char *nptr, char **endptr)
 {
-       double x;
-       if (check_win_special(nptr, endptr, &x))
-               return x;
-       return strtod(nptr, endptr);
+    double x;
+    if (check_win_special(nptr, endptr, &x))
+        return x;
+    return strtod(nptr, endptr);
 }
 
 static inline double strtold_wrapper(const char *nptr, char **endptr)
 {
-       double x;
-       if (check_win_special(nptr, endptr, &x))
-               return x;
-       return strtold(nptr, endptr);
+    double x;
+    if (check_win_special(nptr, endptr, &x))
+        return x;
+    return strtold(nptr, endptr);
 }
 
 static inline Rboolean Strtod()
