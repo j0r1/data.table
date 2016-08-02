@@ -54,6 +54,12 @@ static int eolLen, line, field;
 static Rboolean verbose, ERANGEwarning;
 static clock_t tCoerce, tCoerceAlloc;
 
+typedef double (*t_strtod)(const char *nptr, char **endpos);
+typedef long double (*t_strtold)(const char *nptr, char **endpos);
+
+static t_strtod strtod_function = strtod;
+static t_strtold strtold_function = strtold;
+
 // Define our own fread type codes, different to R's SEXPTYPE :
 // i) INTEGER64 is not in R but an add on packages using REAL, we need to make a distinction here, without using class (for speed)
 // ii) 0:n codes makes it easier to bump through types in this order using ++.
@@ -397,7 +403,7 @@ static inline Rboolean Strtod()
     const char *start=lch;
     errno = 0;
 
-    u.d = strtod_wrapper(start, (char **)&lch);
+    u.d = strtod_function(start, (char **)&lch);
     // take care of leading spaces
     while(lch<eof && *lch!=sep && *lch==' ') lch++;
     if (errno==0 && lch>start && (lch==eof || *lch==sep || *lch==eol)) {
@@ -407,7 +413,7 @@ static inline Rboolean Strtod()
     if (errno==ERANGE && lch>start) {
         lch = start;
         errno = 0;
-        u.d = (double)strtold_wrapper(start, (char **)&lch);
+        u.d = (double)strtold_function(start, (char **)&lch);
         if (errno==0 && lch>start && (lch==eof || *lch==sep || *lch==eol)) {
             ch = lch;
             if (ERANGEwarning) {
@@ -579,7 +585,7 @@ static SEXP coerceVectorSoFar(SEXP v, int oldtype, int newtype, R_len_t sofar, R
     return(newv);
 }
 
-SEXP readfile(SEXP input, SEXP separg, SEXP nrowsarg, SEXP headerarg, SEXP nastrings, SEXP verbosearg, SEXP autostart, SEXP skip, SEXP select, SEXP drop, SEXP colClasses, SEXP integer64, SEXP dec, SEXP encoding, SEXP quoteArg, SEXP stripWhiteArg, SEXP skipEmptyLinesArg, SEXP fillArg, SEXP showProgressArg)
+SEXP readfile(SEXP input, SEXP separg, SEXP nrowsarg, SEXP headerarg, SEXP nastrings, SEXP verbosearg, SEXP autostart, SEXP skip, SEXP select, SEXP drop, SEXP colClasses, SEXP integer64, SEXP dec, SEXP encoding, SEXP quoteArg, SEXP stripWhiteArg, SEXP skipEmptyLinesArg, SEXP fillArg, SEXP showProgressArg, SEXP handleVisualStudioInfNan)
 // can't be named fread here because that's already a C function (from which the R level fread function took its name)
 {
     SEXP thiscol, ans, thisstr;
@@ -591,6 +597,15 @@ SEXP readfile(SEXP input, SEXP separg, SEXP nrowsarg, SEXP headerarg, SEXP nastr
     clock_t t0 = clock();
     ERANGEwarning = FALSE;  // just while detecting types, then TRUE before the read data loop
     PROTECT_INDEX pi;
+
+    // Reset the functions to the default ones
+    strtod_function = strtod;
+    strtold_function = strtold;
+
+    if (LOGICAL(handleVisualStudioInfNan)[0]) {
+        strtod_function = strtod_wrapper;
+        strtold_function = strtold_wrapper;
+    }
 
     // Encoding, #563: Borrowed from do_setencoding from base R
     // https://github.com/wch/r-source/blob/ca5348f0b5e3f3c2b24851d7aff02de5217465eb/src/main/util.c#L1115
